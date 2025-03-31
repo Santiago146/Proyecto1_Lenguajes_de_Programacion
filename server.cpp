@@ -2,13 +2,62 @@
 #include <sys/socket.h> // Para la creación y uso de sockets
 #include <netinet/in.h> // Para definir direcciones de red y estructura sockaddr_in
 #include <unistd.h> // Para funciones de cierre de sockets y procesos
+#include <unordered_map>
+#include <arpa/inet.h> // para manejar ips
 
 using namespace std;
 
 int port = 8080; // puerto por defecto en caso de error con el archivo config.txt
 
+// Estructura para almacenar información del usuario
+struct Usuario {
+    std::string ip;
+    int socket_fd;
+};
+
+// Mapa para almacenar los usuarios conectados
+std::unordered_map<std::string, Usuario> usuarios_conectados; //guarda un username, su IP y su ID de socket
+
+// Función para obtener la IP del cliente
+std::string obtenerIP(int client_socket) {
+    struct sockaddr_in addr;
+    socklen_t addr_len = sizeof(addr);
+    getpeername(client_socket, (struct sockaddr*)&addr, &addr_len); // funcion para obtener la IP del usuario
+    return inet_ntoa(addr.sin_addr);
+}
+
 void handleClient(int client_socket) {
     char buffer[1024]; // buffer para los mensajes
+    char username[50];
+    
+    std::string user_ip = obtenerIP(client_socket);
+    
+    // Solicitar y registrar el nombre de usuario
+    send(client_socket, "Ingrese su nombre de usuario: ", 29, 0);
+    recv(client_socket, username, sizeof(username), 0);
+    username[strcspn(username, "\n")] = 0; // Eliminar salto de línea
+
+    // Verificar si el usuario ya está registrado
+    if (usuarios_conectados.find(username) != usuarios_conectados.end()) {
+        if (usuarios_conectados[username].ip != user_ip) {
+            // Si las IPs no coinciden, denegamos la conexión
+            send(client_socket, "Nombre de usuario ya en uso desde otra IP. Intente otro.\n", 44, 0);
+            handleClient(client_socket);
+        }
+    }
+    
+    // Registrar al usuario, IP y socket ID, auqnue ya este en uso, el socket ID es diferente y necesario para actualizar
+    // username: reconocer al usuario
+    // IP: reconocer direccion en la que se conecta el usuario, y si lo hace desde varios dispositivos a la vez
+    // reconocer el canal de comunicacion de cada dispositivo
+    Usuario nuevo_usuario = {user_ip, client_socket};
+    usuarios_conectados[username] = nuevo_usuario;
+    
+    string welcome_message = "Bienvenido, " + std::string(username) + "!\n";
+    send(client_socket, welcome_message.c_str(), welcome_message.length(), 0);
+
+    cout << "Usuario " << username << " registrado con IP: " << user_ip << endl; // depsues de pruebas cambiar por exitosamente
+
     while (true) {
         memset(buffer, 0, sizeof(buffer)); // limpia el buffer
         int bytes_received = recv(client_socket, buffer, sizeof(buffer), 0); // recibe datos, y guarda los datos en el buffer y la longitud del mensaje en bytes_received
