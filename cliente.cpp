@@ -24,6 +24,8 @@ int main() {
     serv_addr.sin_port = htons(port);
     serv_addr.sin_addr.s_addr = INADDR_ANY;  // Se conecta al localhost por defecto
 
+    // agregar do while para reintentar conexiones al salir
+
     // Conectar al servidor
     if (connect(client_fd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) { // connect intenta conectarse al servidor, y guarda el resultado en "client_fd"
         perror("Conexión fallida");
@@ -32,25 +34,47 @@ int main() {
 
     cout << "Conectado al servidor.\n" << endl;
 
+    // Enviar el nombre de usuario antes de comenzar a chatear
+    while (true) {
+        cout << "Ingrese nombre de usuario: ";
+        cin.getline(buffer, sizeof(buffer));
+
+        if (send(client_fd, buffer, strlen(buffer), 0) == -1) {
+            perror("Error al enviar el username");
+            close(client_fd);
+            return -1;
+        }
+
+        memset(buffer, 0, sizeof(buffer));
+        int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
+        if (bytes_received <= 0) {
+            cout << "El servidor cerró la conexión." << endl;
+            close(client_fd);
+            return -1;
+        }
+
+        cout << "Servidor: " << buffer << endl;
+
+        if (strstr(buffer, "Bienvenido") != nullptr) {
+            break; // nombre aceptado
+        }
+    }
+
     // Enviar y recibir mensajes en un bucle
     cout << "Presione (Ctrl + C) para salir" << endl << endl;
     while (true) {
-        cout << "Ingrese mensaje: ";
-        cin.getline(buffer, sizeof(buffer));  // Leer un mensaje del usuariohol
-
-        if (send(client_fd, buffer, strlen(buffer), 0) == -1) {
-            perror("Error al enviar el mensaje");
-        } else {
-        // Recibir respuesta del servidor
-            memset(buffer, 0, sizeof(buffer));
-            int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
-            if (bytes_received <= 0) {
-                cout << "Conexión cerrada por el servidor" << endl;
-                break;
-            }
-
-            cout << "Respuesta del servidor: " << buffer << endl << endl;
+        memset(buffer, 0, sizeof(buffer));
+        int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0);
+        if (bytes_received <= 0) {
+            cout << "Servidor desconectado" << endl;
+            break;
         }
+        if (strcmp(buffer, "Servidor cerrado.\n") == 0) {
+            std::cout << "[Servidor] se ha cerrado. Saliendo del programa...\n";
+            break; // o exit(0);
+        }
+        
+        cout << "Respuesta del servidor: " << buffer << endl << endl;
     }
 
     // Cerrar conexión
