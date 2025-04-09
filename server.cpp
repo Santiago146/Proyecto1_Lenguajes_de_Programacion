@@ -96,7 +96,7 @@ void manejarCliente(int client_socket) {
     string welcome_message = "Bienvenido, " + std::string(username) + "!\n";
     send(client_socket, welcome_message.c_str(), welcome_message.length(), 0);
 
-    cout << "Usuario " << username << " registrado con IP: " << user_ip << endl; // depsues de pruebas cambiar por exitosamente
+    cout << "Usuario " << username << " registrado con IP: " << user_ip << " y puerto: " << puerto_cliente << endl; // depsues de pruebas cambiar por exitosamente
 
     // Bucle principal de comunicación con el cliente
     while (true) {
@@ -136,7 +136,7 @@ void manejarCliente(int client_socket) {
                      mensaje_formateado.length(), 0);
                 
                 // Confirmar al remitente
-                string confirmacion = "Mensaje enviado a " + destinatario;
+                string confirmacion = "\nMensaje enviado a " + destinatario;
                 send(client_socket, confirmacion.c_str(), confirmacion.length(), 0);
             } else {
                 // Usuario no encontrado

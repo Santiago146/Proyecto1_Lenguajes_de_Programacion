@@ -137,7 +137,7 @@ void enviarMensajes(int socket_cliente) {
                     mensaje_completo = destinatario + ":" + mensaje;
                     
                     // Enviar mensaje al servidor
-                    if (send(socket_cliente, mensaje_completo.c_str(), mensaje_completo.length(), 0) < 0) {
+                    if (send(socket_cliente, mensaje_completo.c_str(), mensaje_completo.length(), 0) > 0) {
                         cout << COLOR_ROJO << "Error al enviar mensaje" << COLOR_RESET << endl;
                         ejecutando = false;
                         break;
