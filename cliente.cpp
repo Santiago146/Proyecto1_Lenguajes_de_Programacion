@@ -32,7 +32,7 @@ void manejadorSignal(int signal_num) {
 void recibirMensajes(int socket_cliente) {
     char buffer[1024];
     
-    while(true) {
+    while (true) {
         memset(buffer, 0, sizeof(buffer));
         int bytes_recibidos = recv(socket_cliente, buffer, sizeof(buffer), 0);
         
@@ -42,10 +42,6 @@ void recibirMensajes(int socket_cliente) {
             break;
         }
         
-        // Reemplazar esta línea:
-        // cout << COLOR_AZUL << "Recibido: " << buffer << COLOR_RESET << endl;
-        
-        // Con este código más detallado:
         if (strncmp(buffer, "DE:", 3) == 0) {
             // Es un mensaje de otro usuario, formatear adecuadamente
             cout << "\n" << COLOR_AZUL << "[ MENSAJE RECIBIDO ] " << buffer << COLOR_RESET << endl;
@@ -56,20 +52,10 @@ void recibirMensajes(int socket_cliente) {
             // Otros mensajes del servidor
             cout << "\n" << COLOR_AZUL << "[ SERVIDOR ] " << buffer << COLOR_RESET << endl;
         }
-
-        // Recordar al usuario que está en un menú
-        cout << COLOR_VERDE << "\n===== MENÚ PRINCIPAL =====" << COLOR_RESET << endl;
-        cout << "1. Ver lista de usuarios conectados" << endl;
-        cout << "2. Enviar mensaje" << endl;
-        cout << "3. Salir" << endl;
-        cout << "Seleccione una opción: ";
     }
     
     exit(0);
 }
-
-// Función para el proceso de envío de mensajes
-// Reemplazar la función enviarMensajes actual con esta implementación
 
 // Función para el proceso de envío de mensajes
 void enviarMensajes(int socket_cliente) {
@@ -77,7 +63,7 @@ void enviarMensajes(int socket_cliente) {
     int opcion;
     bool ejecutando = true;
     
-    while(ejecutando) {
+    while (ejecutando) {
         // Mostrar menú principal
         cout << "\n" << COLOR_VERDE << "===== MENÚ PRINCIPAL =====" << COLOR_RESET << endl;
         cout << "1. Ver lista de usuarios conectados" << endl;
@@ -91,23 +77,22 @@ void enviarMensajes(int socket_cliente) {
         try {
             opcion = stoi(input);
         }
-        catch (const std::exception& e) {
+        catch (const exception& e) {
             cout << COLOR_ROJO << "Por favor, ingrese un número válido." << COLOR_RESET << endl;
             continue;
         }
         
         // Procesar opción seleccionada
-        switch(opcion) {
+        switch (opcion) {
             case 1: // Ver lista de usuarios
                 {
                     // Solicitar lista de usuarios al servidor
-                    if (send(socket_cliente, "LISTAR_USUARIOS", 14, 0) < 0) {
+                    if (send(socket_cliente, "LISTAR_USUARIOS", strlen("LISTAR_USUARIOS"), 0) < 0) {
                         cout << COLOR_ROJO << "Error al solicitar lista de usuarios" << COLOR_RESET << endl;
                         ejecutando = false;
                         break;
                     }
                     cout << "Solicitando lista de usuarios..." << endl;
-                    sleep(1); // Dar tiempo para recibir respuesta
                 }
                 break;
                 
@@ -137,7 +122,7 @@ void enviarMensajes(int socket_cliente) {
                     mensaje_completo = destinatario + ":" + mensaje;
                     
                     // Enviar mensaje al servidor
-                    if (send(socket_cliente, mensaje_completo.c_str(), mensaje_completo.length(), 0) > 0) {
+                    if (send(socket_cliente, mensaje_completo.c_str(), mensaje_completo.length(), 0) == -1) {
                         cout << COLOR_ROJO << "Error al enviar mensaje" << COLOR_RESET << endl;
                         ejecutando = false;
                         break;
@@ -252,8 +237,6 @@ int main() {
         // Proceso padre: maneja el envío de mensajes
         enviarMensajes(socket_fd);
     }
-    
-    // No debería llegar aquí
     close(socket_fd);
     return 0;
 }
