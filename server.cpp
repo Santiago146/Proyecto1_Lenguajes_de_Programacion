@@ -10,26 +10,9 @@
 #include <cstring>
 #include <vector> // Para usar std::vector
 #include <sys/mman.h> // Para memoria compartida
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-#include <mutex> // Para mutex y lock_guard
-#include <semaphore.h> // Para semáforos
-=======
 #include <pthread.h> // Para mutex entre procesos
 #include <fcntl.h> // Para O_* constantes
 #include <semaphore.h> // Para semáforos entre procesos
->>>>>>> Stashed changes
-=======
-#include <pthread.h> // Para mutex entre procesos
-#include <fcntl.h> // Para O_* constantes
-#include <semaphore.h> // Para semáforos entre procesos
->>>>>>> Stashed changes
-=======
-#include <pthread.h> // Para mutex entre procesos
-#include <fcntl.h> // Para O_* constantes
-#include <semaphore.h> // Para semáforos entre procesos
->>>>>>> Stashed changes
 
 using namespace std;
 
@@ -45,23 +28,6 @@ struct Usuario {
     pid_t proceso_id; // Agregar el ID del proceso que maneja este usuario
 };
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-struct SharedData {
-    unordered_map<string, Usuario> usuarios_conectados;
-    sem_t usuarios_sem;
-};
-
-SharedData* shared_data;
-
-// Función para inicializar memoria compartida
-void inicializarMemoriaCompartida() {
-    size_t tamano_memoria = sizeof(SharedData);
-    void* memoria = mmap(NULL, tamano_memoria,
-                         PROT_READ | PROT_WRITE,
-                         MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-=======
 // Estructura para compartir datos entre procesos
 struct DatosCompartidos {
     pthread_mutex_t mutex;
@@ -78,60 +44,13 @@ unordered_map<string, Usuario> usuarios_locales;
 
 // Función para inicializar memoria compartida
 void inicializarMemoriaCompartida() {
-=======
-// Estructura para compartir datos entre procesos
-struct DatosCompartidos {
-    pthread_mutex_t mutex;
-    int num_usuarios;
-    int next_id;      // ID único compartido
-    char usuarios_data[1024 * 50]; // Buffer grande para almacenar datos serializados
-};
-
-// Puntero a la estructura compartida
-DatosCompartidos* datos_compartidos;
-
-// Mapa local para cada proceso
-unordered_map<string, Usuario> usuarios_locales;
-
-// Función para inicializar memoria compartida
-void inicializarMemoriaCompartida() {
->>>>>>> Stashed changes
-=======
-// Estructura para compartir datos entre procesos
-struct DatosCompartidos {
-    pthread_mutex_t mutex;
-    int num_usuarios;
-    int next_id;      // ID único compartido
-    char usuarios_data[1024 * 50]; // Buffer grande para almacenar datos serializados
-};
-
-// Puntero a la estructura compartida
-DatosCompartidos* datos_compartidos;
-
-// Mapa local para cada proceso
-unordered_map<string, Usuario> usuarios_locales;
-
-// Función para inicializar memoria compartida
-void inicializarMemoriaCompartida() {
->>>>>>> Stashed changes
     // Reservar memoria compartida para la estructura
     void* memoria = mmap(NULL, sizeof(DatosCompartidos),
                          PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
->>>>>>> Stashed changes
     if (memoria == MAP_FAILED) {
         perror("Error al asignar memoria compartida");
         exit(EXIT_FAILURE);
     }
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    shared_data = new (memoria) SharedData();
-    sem_init(&shared_data->usuarios_sem, 1, 1);
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     
     // Inicializar la estructura en la memoria compartida
     datos_compartidos = new (memoria) DatosCompartidos();
@@ -222,13 +141,6 @@ void deserializarUsuarios() {
             usuarios_locales[username] = {user_id, ip, socket_fd, puerto, proceso_id};
         }
     }
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 }
 
 // Función para obtener la IP del cliente
@@ -243,14 +155,6 @@ string obtenerIP(int client_socket) {
 void enviarListaUsuarios(int client_socket) {
     string lista = "USUARIOS CONECTADOS:\n";
     
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    if (shared_data->usuarios_conectados.empty()) {
-        lista += "- No hay usuarios conectados actualmente.\n";
-    } else {
-        for (const auto& par : shared_data->usuarios_conectados) {
-=======
     // Actualizar datos locales desde la memoria compartida
     deserializarUsuarios();
     
@@ -258,25 +162,6 @@ void enviarListaUsuarios(int client_socket) {
         lista += "- No hay usuarios conectados actualmente.\n";
     } else {
         for (const auto& par : usuarios_locales) {
->>>>>>> Stashed changes
-=======
-    // Actualizar datos locales desde la memoria compartida
-    deserializarUsuarios();
-    
-    if (usuarios_locales.empty()) {
-        lista += "- No hay usuarios conectados actualmente.\n";
-    } else {
-        for (const auto& par : usuarios_locales) {
->>>>>>> Stashed changes
-=======
-    // Actualizar datos locales desde la memoria compartida
-    deserializarUsuarios();
-    
-    if (usuarios_locales.empty()) {
-        lista += "- No hay usuarios conectados actualmente.\n";
-    } else {
-        for (const auto& par : usuarios_locales) {
->>>>>>> Stashed changes
             lista += "- " + par.first + "\n";
         }
     }
@@ -289,17 +174,9 @@ void enviarListaUsuarios(int client_socket) {
 }
 
 // Función para enviar la lista de usuarios conectados a todos los clientes
-void pasarListaUsuarios() {
+void broadcastListaUsuarios() {
     string lista = "USUARIOS CONECTADOS:\n";
     
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    if (shared_data->usuarios_conectados.empty()) {
-        lista += "- No hay usuarios conectados actualmente.\n";
-    } else {
-        for (const auto& par : shared_data->usuarios_conectados) {
-=======
     // Actualizar datos locales desde la memoria compartida
     deserializarUsuarios();
     
@@ -307,39 +184,10 @@ void pasarListaUsuarios() {
         lista += "- No hay usuarios conectados actualmente.\n";
     } else {
         for (const auto& par : usuarios_locales) {
->>>>>>> Stashed changes
-=======
-    // Actualizar datos locales desde la memoria compartida
-    deserializarUsuarios();
-    
-    if (usuarios_locales.empty()) {
-        lista += "- No hay usuarios conectados actualmente.\n";
-    } else {
-        for (const auto& par : usuarios_locales) {
->>>>>>> Stashed changes
-=======
-    // Actualizar datos locales desde la memoria compartida
-    deserializarUsuarios();
-    
-    if (usuarios_locales.empty()) {
-        lista += "- No hay usuarios conectados actualmente.\n";
-    } else {
-        for (const auto& par : usuarios_locales) {
->>>>>>> Stashed changes
             lista += "- " + par.first + "\n";
         }
     }
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    for (const auto& par : shared_data->usuarios_conectados) {
-        send(par.second.socket_fd, lista.c_str(), lista.length(), 0);
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     // Enviar la lista a todos los usuarios
     for (const auto& par : usuarios_locales) {
         if (par.second.socket_fd > 0) {
@@ -348,28 +196,12 @@ void pasarListaUsuarios() {
                 send(par.second.socket_fd, lista.c_str(), lista.length(), 0);
             }
         }
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     }
 }
 
 // Función para mostrar los usuarios conectados en el servidor
 void mostrarUsuariosConectados() {
     cout << "Usuarios conectados actualmente:\n";
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    if (shared_data->usuarios_conectados.empty()) {
-        cout << "- No hay usuarios conectados.\n";
-    } else {
-        for (const auto& par : shared_data->usuarios_conectados) {
-            cout << "- " << par.first << " (IP: " << par.second.ip << ", Socket: " << par.second.socket_fd << ")\n";
-=======
     
     // Actualizar datos locales desde la memoria compartida
     deserializarUsuarios();
@@ -377,36 +209,11 @@ void mostrarUsuariosConectados() {
     if (usuarios_locales.empty()) {
         cout << "- No hay usuarios conectados.\n";
     } else {
-=======
-    
-    // Actualizar datos locales desde la memoria compartida
-    deserializarUsuarios();
-    
-    if (usuarios_locales.empty()) {
-        cout << "- No hay usuarios conectados.\n";
-    } else {
->>>>>>> Stashed changes
-=======
-    
-    // Actualizar datos locales desde la memoria compartida
-    deserializarUsuarios();
-    
-    if (usuarios_locales.empty()) {
-        cout << "- No hay usuarios conectados.\n";
-    } else {
->>>>>>> Stashed changes
         for (const auto& par : usuarios_locales) {
             cout << "- " << par.first << " (IP: " << par.second.ip 
                  << ", Socket: " << par.second.socket_fd 
                  << ", ID: " << par.second.user_id
                  << ", Proceso: " << par.second.proceso_id << ")\n";
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
         }
     }
 }
@@ -553,33 +360,6 @@ void manejarCliente(int client_socket) {
         return;
     }
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    // Usar un semáforo para evitar condiciones de carrera
-    sem_wait(&shared_data->usuarios_sem);
-    {
-        // Verificar si el usuario ya está registrado
-        if (shared_data->usuarios_conectados.find(username_str) != shared_data->usuarios_conectados.end()) {
-            if (shared_data->usuarios_conectados[username_str].ip != user_ip) {
-                sem_post(&shared_data->usuarios_sem);
-                send(client_socket, "Nombre de usuario ya en uso desde otra IP. Intente otro.\n", 56, 0);
-                close(client_socket);
-                return;
-            }
-        }
-
-        // Registrar al usuario, IP y socket ID
-        struct sockaddr_in addr;
-        socklen_t addr_len = sizeof(addr);
-        getpeername(client_socket, (struct sockaddr*)&addr, &addr_len);
-        int puerto_cliente = ntohs(addr.sin_port);
-
-        Usuario nuevo_usuario = {user_ip, client_socket, puerto_cliente};
-        shared_data->usuarios_conectados[username_str] = nuevo_usuario;
-
-        cout << "Usuario " << username_str << " registrado con IP: " << user_ip << " y puerto: " << puerto_cliente << endl;
-=======
     // Actualizar desde la memoria compartida
     deserializarUsuarios();
     
@@ -591,71 +371,7 @@ void manejarCliente(int client_socket) {
             close(client_socket);
             return;
         }
->>>>>>> Stashed changes
-=======
-    // Actualizar desde la memoria compartida
-    deserializarUsuarios();
-    
-    // Verificar si el usuario ya está registrado
-    if (usuarios_locales.find(username_str) != usuarios_locales.end()) {
-        if (usuarios_locales[username_str].ip != user_ip) {
-            // Si las IPs no coinciden, denegamos la conexión
-            send(client_socket, "Nombre de usuario ya en uso desde otra IP. Intente otro.\n", 56, 0);
-            close(client_socket);
-            return;
-        }
->>>>>>> Stashed changes
-=======
-    // Actualizar desde la memoria compartida
-    deserializarUsuarios();
-    
-    // Verificar si el usuario ya está registrado
-    if (usuarios_locales.find(username_str) != usuarios_locales.end()) {
-        if (usuarios_locales[username_str].ip != user_ip) {
-            // Si las IPs no coinciden, denegamos la conexión
-            send(client_socket, "Nombre de usuario ya en uso desde otra IP. Intente otro.\n", 56, 0);
-            close(client_socket);
-            return;
-        }
->>>>>>> Stashed changes
     }
-    sem_post(&shared_data->usuarios_sem);
-
-    // Registrar al usuario, IP y socket ID
-    struct sockaddr_in addr;
-    socklen_t addr_len = sizeof(addr);
-    getpeername(client_socket, (struct sockaddr*)&addr, &addr_len);
-    int puerto_cliente = ntohs(addr.sin_port);
-
-    // Obtener un ID único para este usuario
-    int user_id = obtenerNuevoId();
-    
-    Usuario nuevo_usuario = {user_id, user_ip, client_socket, puerto_cliente, getpid()};
-    usuarios_locales[username_str] = nuevo_usuario;
-    
-    // Guardar en la memoria compartida
-    serializarUsuarios();
-
-    cout << "Usuario " << username_str << " registrado con IP: " << user_ip 
-         << ", puerto: " << puerto_cliente << ", ID: " << user_id << endl;
-
-    // Registrar al usuario, IP y socket ID
-    struct sockaddr_in addr;
-    socklen_t addr_len = sizeof(addr);
-    getpeername(client_socket, (struct sockaddr*)&addr, &addr_len);
-    int puerto_cliente = ntohs(addr.sin_port);
-
-    // Obtener un ID único para este usuario
-    int user_id = obtenerNuevoId();
-    
-    Usuario nuevo_usuario = {user_id, user_ip, client_socket, puerto_cliente, getpid()};
-    usuarios_locales[username_str] = nuevo_usuario;
-    
-    // Guardar en la memoria compartida
-    serializarUsuarios();
-
-    cout << "Usuario " << username_str << " registrado con IP: " << user_ip 
-         << ", puerto: " << puerto_cliente << ", ID: " << user_id << endl;
 
     // Registrar al usuario, IP y socket ID
     struct sockaddr_in addr;
@@ -683,7 +399,7 @@ void manejarCliente(int client_socket) {
     mostrarUsuariosConectados();
 
     // Enviar la lista actualizada de usuarios a todos los clientes
-    pasarListaUsuarios();
+    broadcastListaUsuarios();
 
     // Bucle principal de comunicación con el cliente
     while (true) {
@@ -730,27 +446,6 @@ void manejarCliente(int client_socket) {
             deserializarUsuarios();
             
             // Verificar si el destinatario existe
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-            {
-                sem_wait(&shared_data->usuarios_sem);
-                if (shared_data->usuarios_conectados.find(destinatario) != shared_data->usuarios_conectados.end()) {
-                    // Construir mensaje con formato "DE:username MENSAJE:contenido"
-                    string mensaje_formateado = "DE:" + username_str + " MENSAJE:" + contenido;
-                    
-                    // Enviar mensaje al destinatario
-                    send(shared_data->usuarios_conectados[destinatario].socket_fd, 
-                        mensaje_formateado.c_str(), 
-                        mensaje_formateado.length(), 0);
-                    
-                    // Confirmar al remitente
-                    string confirmacion = "\nMensaje enviado a " + destinatario;
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
             bool destinatario_existe = usuarios_locales.find(destinatario) != usuarios_locales.end();
             
             if (destinatario_existe) {
@@ -806,39 +501,16 @@ void manejarCliente(int client_socket) {
                 // Confirmar al remitente
                 if (mensaje_enviado) {
                     string confirmacion = "Mensaje enviado a " + destinatario + "\n";
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
                     send(client_socket, confirmacion.c_str(), confirmacion.length(), 0);
                     cout << "Mensaje de " << username_str << " enviado a " << destinatario << endl;
                 } else {
                     string error = "Error al enviar mensaje a " + destinatario;
                     send(client_socket, error.c_str(), error.length(), 0);
                 }
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-                sem_post(&shared_data->usuarios_sem);
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
             } else {
                 // Usuario no encontrado
                 string error = "Usuario " + destinatario + " no encontrado o no está conectado";
                 send(client_socket, error.c_str(), error.length(), 0);
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
             }
         } else {
             // Formato incorrecto
@@ -848,46 +520,17 @@ void manejarCliente(int client_socket) {
     }
     
     // Eliminar al usuario de la lista de conectados
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    sem_wait(&shared_data->usuarios_sem);
-    {
-        auto it = shared_data->usuarios_conectados.find(username_str);
-        if (it != shared_data->usuarios_conectados.end() && it->second.socket_fd == client_socket) {
-            shared_data->usuarios_conectados.erase(it);
-        }
-    }
-    sem_post(&shared_data->usuarios_sem);
-=======
     deserializarUsuarios();
     usuarios_locales.erase(username_str);
     serializarUsuarios();
->>>>>>> Stashed changes
-=======
-    deserializarUsuarios();
-    usuarios_locales.erase(username_str);
-    serializarUsuarios();
->>>>>>> Stashed changes
-=======
-    deserializarUsuarios();
-    usuarios_locales.erase(username_str);
-    serializarUsuarios();
->>>>>>> Stashed changes
 
     // Mostrar usuarios conectados después de eliminar al usuario
     mostrarUsuariosConectados();
 
     // Enviar la lista actualizada de usuarios a todos los clientes
-    pasarListaUsuarios();
+    broadcastListaUsuarios();
 
     close(client_socket); // cierra el proceso del cliente
-}
-
-void limpiarRecursos() {
-    // Limpiar recursos al terminar
-    sem_destroy(&shared_data->usuarios_sem);
-    munmap(shared_data, sizeof(SharedData));
 }
 
 int main() {
@@ -945,11 +588,6 @@ int main() {
         exit(EXIT_FAILURE);
     }
     cout << "Servidor escuchando en el puerto " << port << "..." << endl;
-
-    signal(SIGINT, [](int){
-        limpiarRecursos();
-        exit(0);
-    });
 
     // Bucle principal del servidor
     while (true) {
