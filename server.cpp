@@ -10,6 +10,7 @@
 #include <cstring>
 #include <sys/mman.h> // Para memoria compartida
 #include <mutex> // Para mutex y lock_guard
+#include <semaphore.h> // Para semáforos
 
 using namespace std;
 
@@ -22,18 +23,25 @@ struct Usuario {
     int puerto;
 };
 
-// Cambiar el mapa de usuarios conectados a un puntero compartido
-unordered_map<string, Usuario>* usuarios_conectados; //guarda un username, su IP y su ID de socket
+struct SharedData {
+    unordered_map<string, Usuario> usuarios_conectados;
+    sem_t usuarios_sem;
+};
+
+SharedData* shared_data;
 
 // Función para inicializar memoria compartida
 void inicializarMemoriaCompartida() {
-    void* memoria = mmap(NULL, sizeof(unordered_map<string, Usuario>),
-                         PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    size_t tamano_memoria = sizeof(SharedData);
+    void* memoria = mmap(NULL, tamano_memoria,
+                         PROT_READ | PROT_WRITE,
+                         MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     if (memoria == MAP_FAILED) {
         perror("Error al asignar memoria compartida");
         exit(EXIT_FAILURE);
     }
-    usuarios_conectados = new (memoria) unordered_map<string, Usuario>();
+    shared_data = new (memoria) SharedData();
+    sem_init(&shared_data->usuarios_sem, 1, 1);
 }
 
 // Función para obtener la IP del cliente
@@ -48,10 +56,10 @@ string obtenerIP(int client_socket) {
 void enviarListaUsuarios(int client_socket) {
     string lista = "USUARIOS CONECTADOS:\n";
     
-    if (usuarios_conectados->empty()) {
+    if (shared_data->usuarios_conectados.empty()) {
         lista += "- No hay usuarios conectados actualmente.\n";
     } else {
-        for (const auto& par : *usuarios_conectados) {
+        for (const auto& par : shared_data->usuarios_conectados) {
             lista += "- " + par.first + "\n";
         }
     }
@@ -60,18 +68,18 @@ void enviarListaUsuarios(int client_socket) {
 }
 
 // Función para enviar la lista de usuarios conectados a todos los clientes
-void broadcastListaUsuarios() {
+void pasarListaUsuarios() {
     string lista = "USUARIOS CONECTADOS:\n";
     
-    if (usuarios_conectados->empty()) {
+    if (shared_data->usuarios_conectados.empty()) {
         lista += "- No hay usuarios conectados actualmente.\n";
     } else {
-        for (const auto& par : *usuarios_conectados) {
+        for (const auto& par : shared_data->usuarios_conectados) {
             lista += "- " + par.first + "\n";
         }
     }
 
-    for (const auto& par : *usuarios_conectados) {
+    for (const auto& par : shared_data->usuarios_conectados) {
         send(par.second.socket_fd, lista.c_str(), lista.length(), 0);
     }
 }
@@ -79,10 +87,10 @@ void broadcastListaUsuarios() {
 // Función para mostrar los usuarios conectados en el servidor
 void mostrarUsuariosConectados() {
     cout << "Usuarios conectados actualmente:\n";
-    if (usuarios_conectados->empty()) {
+    if (shared_data->usuarios_conectados.empty()) {
         cout << "- No hay usuarios conectados.\n";
     } else {
-        for (const auto& par : *usuarios_conectados) {
+        for (const auto& par : shared_data->usuarios_conectados) {
             cout << "- " << par.first << " (IP: " << par.second.ip << ", Socket: " << par.second.socket_fd << ")\n";
         }
     }
@@ -127,15 +135,13 @@ void manejarCliente(int client_socket) {
         return;
     }
 
-    // Usar un lock para evitar condiciones de carrera
-    static mutex usuarios_mutex;
+    // Usar un semáforo para evitar condiciones de carrera
+    sem_wait(&shared_data->usuarios_sem);
     {
-        lock_guard<mutex> lock(usuarios_mutex);
-
         // Verificar si el usuario ya está registrado
-        if (usuarios_conectados->find(username_str) != usuarios_conectados->end()) {
-            if ((*usuarios_conectados)[username_str].ip != user_ip) {
-                // Si las IPs no coinciden, denegamos la conexión
+        if (shared_data->usuarios_conectados.find(username_str) != shared_data->usuarios_conectados.end()) {
+            if (shared_data->usuarios_conectados[username_str].ip != user_ip) {
+                sem_post(&shared_data->usuarios_sem);
                 send(client_socket, "Nombre de usuario ya en uso desde otra IP. Intente otro.\n", 56, 0);
                 close(client_socket);
                 return;
@@ -148,11 +154,12 @@ void manejarCliente(int client_socket) {
         getpeername(client_socket, (struct sockaddr*)&addr, &addr_len);
         int puerto_cliente = ntohs(addr.sin_port);
 
-        Usuario nuevo_usuario = {user_ip, client_socket};
-        (*usuarios_conectados)[username_str] = nuevo_usuario;
+        Usuario nuevo_usuario = {user_ip, client_socket, puerto_cliente};
+        shared_data->usuarios_conectados[username_str] = nuevo_usuario;
 
         cout << "Usuario " << username_str << " registrado con IP: " << user_ip << " y puerto: " << puerto_cliente << endl;
     }
+    sem_post(&shared_data->usuarios_sem);
 
     // Enviar mensaje de bienvenida
     string welcome_message = "Bienvenido, " + username_str + "!\n";
@@ -162,7 +169,7 @@ void manejarCliente(int client_socket) {
     mostrarUsuariosConectados();
 
     // Enviar la lista actualizada de usuarios a todos los clientes
-    broadcastListaUsuarios();
+    pasarListaUsuarios();
 
     // Bucle principal de comunicación con el cliente
     while (true) {
@@ -191,13 +198,13 @@ void manejarCliente(int client_socket) {
             
             // Verificar si el destinatario existe
             {
-                lock_guard<mutex> lock(usuarios_mutex);
-                if (usuarios_conectados->find(destinatario) != usuarios_conectados->end()) {
+                sem_wait(&shared_data->usuarios_sem);
+                if (shared_data->usuarios_conectados.find(destinatario) != shared_data->usuarios_conectados.end()) {
                     // Construir mensaje con formato "DE:username MENSAJE:contenido"
                     string mensaje_formateado = "DE:" + username_str + " MENSAJE:" + contenido;
                     
                     // Enviar mensaje al destinatario
-                    send((*usuarios_conectados)[destinatario].socket_fd, 
+                    send(shared_data->usuarios_conectados[destinatario].socket_fd, 
                         mensaje_formateado.c_str(), 
                         mensaje_formateado.length(), 0);
                     
@@ -209,6 +216,7 @@ void manejarCliente(int client_socket) {
                     string error = "Usuario " + destinatario + " no encontrado o no está conectado";
                     send(client_socket, error.c_str(), error.length(), 0);
                 }
+                sem_post(&shared_data->usuarios_sem);
             }
         } else {
             // Formato incorrecto
@@ -218,18 +226,28 @@ void manejarCliente(int client_socket) {
     }
     
     // Eliminar al usuario de la lista de conectados
+    sem_wait(&shared_data->usuarios_sem);
     {
-        lock_guard<mutex> lock(usuarios_mutex);
-        usuarios_conectados->erase(username_str);
+        auto it = shared_data->usuarios_conectados.find(username_str);
+        if (it != shared_data->usuarios_conectados.end() && it->second.socket_fd == client_socket) {
+            shared_data->usuarios_conectados.erase(it);
+        }
     }
+    sem_post(&shared_data->usuarios_sem);
 
     // Mostrar usuarios conectados después de eliminar al usuario
     mostrarUsuariosConectados();
 
     // Enviar la lista actualizada de usuarios a todos los clientes
-    broadcastListaUsuarios();
+    pasarListaUsuarios();
 
     close(client_socket); // cierra el proceso del cliente
+}
+
+void limpiarRecursos() {
+    // Limpiar recursos al terminar
+    sem_destroy(&shared_data->usuarios_sem);
+    munmap(shared_data, sizeof(SharedData));
 }
 
 int main() {
@@ -287,6 +305,11 @@ int main() {
         exit(EXIT_FAILURE);
     }
     cout << "Servidor escuchando en el puerto " << port << "..." << endl;
+
+    signal(SIGINT, [](int){
+        limpiarRecursos();
+        exit(0);
+    });
 
     // Bucle principal del servidor
     while (true) {
