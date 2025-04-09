@@ -31,6 +31,7 @@ void manejadorSignal(int signal_num) {
 // Función para el proceso de recepción de mensajes
 void recibirMensajes(int socket_cliente) {
     char buffer[1024];
+    bool modo_debug = false; // Controlar mensajes de depuración
     
     while (true) {
         memset(buffer, 0, sizeof(buffer));
@@ -42,15 +43,38 @@ void recibirMensajes(int socket_cliente) {
             break;
         }
         
-        if (strncmp(buffer, "DE:", 3) == 0) {
-            // Es un mensaje de otro usuario, formatear adecuadamente
-            cout << "\n" << COLOR_AZUL << "[ MENSAJE RECIBIDO ] " << buffer << COLOR_RESET << endl;
-        } else if (strncmp(buffer, "USUARIOS CONECTADOS:", 20) == 0) {
-            // Es la lista de usuarios
-            cout << "\n" << COLOR_AZUL << buffer << COLOR_RESET << endl;
-        } else {
+        string mensaje(buffer);
+        
+        // Remover caracteres de control al final del mensaje
+        while (!mensaje.empty() && (mensaje.back() == '\n' || mensaje.back() == '\r')) {
+            mensaje.pop_back();
+        }
+        
+        // Imprimir mensaje de depuración solo si está habilitado
+        if (modo_debug) {
+            cout << "\n" << COLOR_VERDE << "Depuración - Mensaje recibido: " << mensaje << COLOR_RESET << endl;
+        }
+        
+        // Ignorar mensajes vacíos
+        if (mensaje.empty()) {
+            continue;
+        }
+        
+        // Procesar diferentes tipos de mensajes
+        if (mensaje.find("DE:") == 0) {
+            // Es un mensaje de otro usuario
+            cout << "\n" << COLOR_AZUL << "[ MENSAJE RECIBIDO ] " << mensaje << COLOR_RESET << endl;
+        } 
+        else if (mensaje.find("USUARIOS CONECTADOS") != string::npos) {
+            // Lista de usuarios - mostrar solo una vez
+            cout << "\n" << COLOR_AZUL << mensaje << COLOR_RESET << endl;
+            
+            // Pequeña pausa para evitar problemas de sincronización
+            usleep(100000); // 100ms para dar tiempo al servidor
+        } 
+        else {
             // Otros mensajes del servidor
-            cout << "\n" << COLOR_AZUL << "[ SERVIDOR ] " << buffer << COLOR_RESET << endl;
+            cout << "\n" << COLOR_AZUL << "[ SERVIDOR ] " << mensaje << COLOR_RESET << endl;
         }
     }
     
@@ -93,6 +117,8 @@ void enviarMensajes(int socket_cliente) {
                         break;
                     }
                     cout << "Solicitando lista de usuarios..." << endl;
+                    // Añadir pausa para dar tiempo al servidor a procesar
+                    sleep(1);
                 }
                 break;
                 
@@ -181,11 +207,9 @@ int main() {
         return 1;
     }
     
-    // Modificar la sección después de la conexión exitosa en main()
-
     cout << COLOR_VERDE << "¡Conectado al servidor " << server_ip << ":" << server_port << "!" << COLOR_RESET << endl;
     cout << COLOR_VERDE << "===== BIENVENIDO AL SISTEMA DE MENSAJERÍA =====" << COLOR_RESET << endl;    
-
+    
     // Proceso inicial de autenticación
     char buffer[1024];
     int bytes_recibidos = recv(socket_fd, buffer, sizeof(buffer), 0);
@@ -237,6 +261,7 @@ int main() {
         // Proceso padre: maneja el envío de mensajes
         enviarMensajes(socket_fd);
     }
+    
     close(socket_fd);
     return 0;
 }
