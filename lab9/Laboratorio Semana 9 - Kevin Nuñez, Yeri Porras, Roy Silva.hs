@@ -1,3 +1,7 @@
+-- Kevin Nuñez
+-- Yeri Porras
+-- Roy Silva
+
 import Data.Char
 import Data.List (find)
 
